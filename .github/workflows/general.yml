@@ -34,13 +34,13 @@ jobs:
         image: postgres:14
         # Environment variables scoped only for the `postgres` element
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: postgres
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
         # When you map ports using the ports keyword, GitHub uses the --publish command to publish the container’s ports to the Docker host
         # Opens tcp port 5432 on the host and service container
         ports:
-          - 5432:5432
+          - ${{ secrets.POSTGRES_PORT }}:${{ secrets.POSTGRES_PORT}}
     steps:
       # Downloads a copy of the code in your repository before running CI tests
       - name: Check out repository code
@@ -66,11 +66,11 @@ jobs:
 
           # Create the application user
           CREATE_QUERY="CREATE USER ${APP_USER} WITH PASSWORD '${APP_USER_PWD}';"
-          PGPASSWORD="password" psql -U "postgres" -h "localhost" -c "${CREATE_QUERY}"
+          PGPASSWORD="${{ secrets.POSTGRES_PASSWORD }}" psql -U "${{ secrets.POSTGRES_USER }}" -h "${{ secrets.POSTGRES_HOST }}" -c "${CREATE_QUERY}"
 
           # Grant create db privileges to the app user
           GRANT_QUERY="ALTER USER ${APP_USER} CREATEDB;"
-          PGPASSWORD="password" psql -U "postgres" -h "localhost" -c "${GRANT_QUERY}"
+          PGPASSWORD="${{ secrets.POSTGRES_PASSWORD }}" psql -U "${{ secrets.POSTGRES_USER }}" -h "${{ secrets.POSTGRES_HOST }}" -c "${GRANT_QUERY}"
 
       - name: Migrate database
         run: DATABASE_URL=${{ secrets.DATABASE_URL }} sqlx migrate run
@@ -123,11 +123,11 @@ jobs:
       postgres:
         image: postgres:14
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: postgres
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
         ports:
-          - 5432:5432
+          - ${{ secrets.POSTGRES_PORT }}:${{ secrets.POSTGRES_PORT }}
     steps:
       - uses: actions/checkout@v4
       - name: Install the Rust toolchain
@@ -146,13 +146,13 @@ jobs:
 
           # Create the application user
           CREATE_QUERY="CREATE USER ${APP_USER} WITH PASSWORD '${APP_USER_PWD}';"
-          PGPASSWORD="password" psql -U "postgres" -h "localhost" -c "${CREATE_QUERY}"
+          PGPASSWORD="${{ secrets.POSTGRES_PASSWORD }}" psql -U "${{ secrets.POSTGRES_USER }}" -h "${{ secrets.POSTGRES_HOST }}" -c "${CREATE_QUERY}"
 
           # Grant create db privileges to the app user
           GRANT_QUERY="ALTER USER ${APP_USER} CREATEDB;"
-          PGPASSWORD="password" psql -U "postgres" -h "localhost" -c "${GRANT_QUERY}"
+          PGPASSWORD="${{ secrets.POSTGRES_PASSWORD }}" psql -U "${{ secrets.POSTGRES_USER }}" -h "${{ secrets.POSTGES_HOST }}" -c "${GRANT_QUERY}"
       - name: Migrate database
-        run: SKIP_DOCKER=true ./scripts/init_db.sh
+        run: DATABASE_URL=${{ secrets.DATABASE_URL }} sqlx migrate run
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Generate code coverage
