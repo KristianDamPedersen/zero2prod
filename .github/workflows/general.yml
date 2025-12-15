@@ -26,8 +26,6 @@ jobs:
     name: Test
     # Containers must run in Linux based operating systems
     runs-on: ubuntu-latest
-    env:
-      POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
     # Service containers to run alongside the `test` container job
     services:
       # Label used to access the service container
@@ -41,8 +39,8 @@ jobs:
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
         # When you map ports using the ports keyword, GitHub uses the --publish command to publish the container’s ports to the Docker host
         # Opens tcp port 5432 on the host and service container
-        ports:
-          - ${{ env.POSTGRES_PORT }}:${{ env.POSTGRES_PORT }}
+        options: >-
+          -p ${{ secrets.POSTGRES_PORT }}:5432
     steps:
       # Downloads a copy of the code in your repository before running CI tests
       - name: Check out repository code
@@ -122,8 +120,6 @@ jobs:
   coverage:
     name: Code coverage
     runs-on: ubuntu-latest
-    env:
-      POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
     services:
       postgres:
         image: postgres:14
@@ -131,8 +127,8 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-        ports:
-          - ${{ env.POSTGRES_PORT }}:${{ env.POSTGRES_PORT }}
+        options: >-
+          -p ${{ secrets.POSTGRES_PORT }}:5432
     steps:
       - uses: actions/checkout@v4
       - name: Install the Rust toolchain
