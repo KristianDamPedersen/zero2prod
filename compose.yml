@@ -1,6 +1,16 @@
-# Use postgres/example user/password credentials
-
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    environment:
+      APP_ENVIRONMENT: production
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
   db:
     image: postgres:16
     restart: always
@@ -8,7 +18,7 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: password
       POSTGRES_DB: zero2prod
     shm_size: 128mb
     volumes:
