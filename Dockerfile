@@ -1,20 +1,32 @@
-FROM rust:1.92.0
-
+FROM lukemathwalker/cargo-chef:latest-rust-1.92.0 as chef
 WORKDIR /app
-
-# Install required system dependencies
 RUN apt update && apt install lld clang -y
 
-# Copy all files fom our working environment
-COPY . .
+FROM chef as planner
+# Compute lock-like file for our project
+COPY Cargo.toml Cargo.toml
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Set SQLX to offline mode to make use of local query file.
+FROM chef as builder
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+# Up to this point, if our dependency tree stays the same, all layers are cached 
+
+COPY . .
 ENV SQLX_OFFLINE=true
 
-# Build the binary
-RUN cargo build --release
+RUN cargo build --release --bin zero2prod
 
-# Set the running environment to production
-ENV APP_ENVIRONMENT="production"
+FROM debian:bookworm-slim as runtime
+WORKDIR /app
+RUN apt-get update -y \
+&& apt-get install -y --no-install-recommends openssl ca-certificates libc6 \
+&& apt-get autoremove -y \
+&& apt-get clean -y \
+&& rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["./target/release/zero2prod"]
+COPY --from=builder /app/target/release/zero2prod zero2prod
+COPY configuration configuration
+ENV APP_ENVIRONMENT=production
+
+ENTRYPOINT ["./zero2prod"]

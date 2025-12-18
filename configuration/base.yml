@@ -1,8 +1,11 @@
-application:
-  port: 8000
-database:
-  host: "localhost"
-  port: 5432
-  username: "postgres"
-  password: "password"
-  database_name: "zero2prod"
+# application:
+  # environment: The environment for the application - set with `APP_APPLICATION__ENVIRONMENT` (local, development, production)
+  # port: Application port - set with `APP_APPLICATION__PORT` (int)
+  # host: Application host - set with `APP_APPLICATION__HOST` (host e.g. 127.0.0.1 or 0.0.0.0)
+# database:
+  # host: The db host - set with `APP_DATABASE__HOST` (string)
+  # port: The db port - set with `APP_DATABASE__PORT` (int)
+  # username: The db username - set with `APP_DATABASE__USERNAME` (string)
+  # password: The db password - set with `APP_DATABASE__PASSWORD` (string)
+  # name: The db name - set with `APP_DATABASE__NAME` (string)
+  # require_ssl: Whether to require SSL, MUST in production - set with `APP_DATABASE__REQUIRE_SSL` (true / false)
