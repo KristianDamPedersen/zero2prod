@@ -5,6 +5,7 @@ import {
   func,
   argument,
   BuildArg,
+  dag,
   Platform,
 } from "@dagger.io/dagger";
 
@@ -46,6 +47,46 @@ export class Zero2prod {
     return await this.buildWithLocalDockerfile(src)
       .withExec(["sh", "-lc", "echo built && uname -a && ls -la"])
       .stdout();
+  }
+
+  @func()
+  async clippy(
+    @argument({ description: "Rust project source directory (repo root)" })
+    src: Directory,
+
+    @argument({ description: 'Extra cargo args, e.g. ["--all-features"]' })
+    cargoArgs?: string[],
+
+    @argument({ description: "Treat warnings as errors" })
+    denyWarnings: boolean = true,
+  ): Promise<string> {
+    let ctr = dag
+      .container()
+      .from("rust:1.92.0")
+      .withWorkdir("/work")
+      // Mount the source code into the container
+      .withMountedDirectory("/work", src)
+      // Add caches to speed up repeated runs.
+      .withMountedCache("/cargo/registry", dag.cacheVolume("cargo-registry"))
+      .withMountedCache("/cargo/git", dag.cacheVolume("cargo-registry"))
+      .withMountedCache("/work/target", dag.cacheVolume("cargo-target"))
+      // Tell cargo were home is, so it uses our cached paths.
+      .withEnvVariable("CARGO_HOME", "/cargo");
+
+    // Ensure clippy is available
+    ctr = ctr.withExec(["rustup", "component", "add", "clippy"]);
+
+    // Run clippy
+    const args = cargoArgs ?? [];
+    const clippyCmd = [
+      "cargo",
+      "clippy",
+      ...args,
+      "--",
+      ...(denyWarnings ? ["-D", "warnings"] : []),
+    ]
+
+    return await ctr.withExec(clippyCmd).stdout();
   }
 }
 
