@@ -50,7 +50,7 @@ async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
     // Randomize the database name such that each integration test gets its own database.
-    configuration.database.database_name = Uuid::new_v4().to_string();
+    configuration.database.name = Uuid::new_v4().to_string();
     let connection_pool = configure_database(&configuration.database).await;
 
     let server =
@@ -71,7 +71,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to connect to postgres");
 
     connection
-        .execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name).as_str())
+        .execute(format!(r#"CREATE DATABASE "{}";"#, config.name).as_str())
         .await
         .expect("Failed to create database");
 

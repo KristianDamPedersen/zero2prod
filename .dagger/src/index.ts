@@ -1,12 +1,14 @@
 import {
   Container,
   Directory,
+  Service,
   object,
   func,
   argument,
   BuildArg,
   dag,
   Platform,
+  Secret,
 } from "@dagger.io/dagger";
 
 @object()
@@ -87,6 +89,90 @@ export class Zero2prod {
     ]
 
     return await ctr.withExec(clippyCmd).stdout();
+  }
+
+  @func()
+  async postgres(
+    @argument({ description: "Postgres image tage" })
+    image: string = "postgres:16",
+    @argument({ description: "DB Name" })
+    dbName: string = "app",
+    @argument({ description: "DB User" })
+    dbUser: string = "app",
+    @argument({ description: "DB Password" })
+    dbPassword: Secret
+  ): Service {
+    return dag
+      .container()
+      .from(image)
+      .withEnvVariable("POSTGRES_DB", dbName)
+      .withEnvVariable("POSTGRES_USER", dbUser)
+      .withSecretVariable("POSTGRES_PASSWORD", dbPassword)
+      .withExposedPort(5432)
+      .asService();
+  }
+
+  rustBase(src: Directory): Container {
+    return dag
+      .container()
+      .from("rust:1.92.0")
+      .withWorkdir("/work")
+      .withMountedDirectory("/work", src)
+      // Cargo caches
+      .withMountedCache("/cargo/registry", dag.cacheVolume("cargo-registry"))
+      .withMountedCache("/cargo/git", dag.cacheVolume("cargo-git"))
+      .withMountedCache("/work/target", dag.cacheVolume("cargo-target"))
+      .withEnvVariable("CARGO_HOME", "/cargo");
+  }
+
+  @func()
+  async dbSmoke(
+    @argument({ description: "Repo root" })
+    src: Directory,
+    @argument({ description: "DB password" })
+    dbPassword: Secret
+  ): Promise<string> {
+    const db = this.postgres("postgres:16", "app", "app", dbPassword);
+
+    const ctr = this.rustBase(src)
+      .withServiceBinding("db", db)
+      .withExec(["bash", "-lc", "apt-get update && apt-get install -y postgresql-client"]);
+
+    // Important: `db` is the service hostname
+    return await ctr
+      .withSecretVariable("PGPASSWORD", dbPassword)
+      .withEnvVariable("PGHOST", "db")
+      .withEnvVariable("PGUSER", "app")
+      .withEnvVariable("PGDATABASE", "app")
+      .withExec(["bash", "-lc", "psql -c 'select 1'"])
+      .stdout();
+  }
+
+  @func()
+  async publishToGhcr(
+    @argument({ description: "Build directory" })
+    src: Directory,
+    @argument({ description: "Image name" })
+    imageName: string,
+    @argument({ description: "Github registry" })
+    registry: string,
+    @argument({ description: "Github user" })
+    user: string,
+    @argument({ description: "Github token" })
+    token: Secret
+  ): Promise<string> {
+    const base = `ghcr.io/${registry}/${imageName}`
+    const sha = await src.asGit().head().commit()
+    const shortSha = sha.slice(0, 12)
+    const shaRef = `${base}:${shortSha}`
+    const latestRef = `${base}:latest`
+
+    const built = this.buildWithLocalDockerfile(src).withRegistryAuth(base, user, token)
+
+    // Publish with both sha and latest ref
+    await built.publish(shaRef)
+    return await built.publish(latestRef)
+
   }
 }
 
